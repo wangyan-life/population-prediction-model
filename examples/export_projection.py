@@ -36,6 +36,27 @@ def save_outputs(data, out, out_dir='outputs'):
     deaths_csv = os.path.join(out_dir, 'deaths_by_age_year.csv')
     df_deaths.to_csv(deaths_csv, index=False)
 
+    # Save total population by year
+    df_total = df_pop.groupby('year', as_index=False)['total'].sum()
+    total_csv = os.path.join(out_dir, 'total_population_by_year.csv')
+    df_total.to_csv(total_csv, index=False)
+
+    # Plot total population over time
+    try:
+        import matplotlib.pyplot as plt
+        fig, ax = plt.subplots(figsize=(8, 4))
+        ax.plot(df_total['year'], df_total['total'], marker='o')
+        ax.set_xlabel('Year')
+        ax.set_ylabel('Total population')
+        ax.set_title('Total population over time')
+        ax.grid(True, linestyle='--', alpha=0.4)
+        plt.tight_layout()
+        total_png = os.path.join(out_dir, 'total_population_by_year.png')
+        fig.savefig(total_png)
+        plt.close(fig)
+    except Exception as e:
+        print('Failed to plot total population:', e)
+
     # Create pyramids per year
     try:
         import matplotlib.pyplot as plt
@@ -43,8 +64,8 @@ def save_outputs(data, out, out_dir='outputs'):
         for i, y in enumerate(years):
             f = out['age_female'][i]
             m = out['age_male'][i]
-            # plot pyramid
-            fig, ax = plt.subplots(figsize=(6, 8))
+            # plot pyramid with wider horizontal scale
+            fig, ax = plt.subplots(figsize=(10, 8))
             # plot males to left (negative)
             ax.barh(ages, -m, color='steelblue', label='male')
             ax.barh(ages, f, color='lightcoral', label='female')
@@ -52,6 +73,12 @@ def save_outputs(data, out, out_dir='outputs'):
             ax.set_ylabel('Age')
             ax.set_title(f'Population pyramid year {y}')
             ax.legend()
+            # set x limits based on maximum single-age group count for readability
+            bar_max = max(np.max(m), np.max(f))
+            ax.set_xlim(-bar_max * 1.2, bar_max * 1.2)
+            # show positive tick labels
+            xt = ax.get_xticks()
+            ax.set_xticklabels([str(int(abs(x))) for x in xt])
             ax.grid(axis='x', linestyle='--', alpha=0.3)
             plt.tight_layout()
             fname = os.path.join(pyramids_dir, f'year_{y}.png')
@@ -60,7 +87,7 @@ def save_outputs(data, out, out_dir='outputs'):
     except Exception as e:
         print('Matplotlib not available or failed to plot:', e)
 
-    return pop_csv, deaths_csv, pyramids_dir
+    return pop_csv, deaths_csv, pyramids_dir, total_csv, total_png
 
 
 def main():
@@ -88,10 +115,12 @@ def main():
 
     out = model.project(**proj_kwargs)
 
-    pop_csv, deaths_csv, pyramids_dir = save_outputs(data, out, out_dir='outputs')
+    pop_csv, deaths_csv, pyramids_dir, total_csv, total_png = save_outputs(data, out, out_dir='outputs')
     print('Saved:', pop_csv)
     print('Saved:', deaths_csv)
     print('Pyramids saved in:', pyramids_dir)
+    print('Saved:', total_csv)
+    print('Saved:', total_png)
 
 
 if __name__ == '__main__':
