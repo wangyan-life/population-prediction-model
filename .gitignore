@@ -1,0 +1,11 @@
+__pycache__/
+*.py[cod]
+outputs/
+*.xlsx
+*.xls
+.vscode/
+env/
+venv/
+dist/
+build/
+*.egg-info

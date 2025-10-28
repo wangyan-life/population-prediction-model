@@ -1,13 +1,6 @@
 """Simple data loader to read population/ASFR/survival/migration from CSV/Excel.
 
-Expected minimal input format (CSV or Excel sheet with columns):
- - age: integer ages 0..max_age
- - female_pop, male_pop (optional)
- - asfr (optional)  -- age-specific fertility rate for females
- - surv_female, surv_male (optional) -- annual survival probability by age
- - mig_female, mig_male (optional) -- net migration counts by age for a single year
-
-The loader returns a dict with numpy arrays keyed to feed into CohortComponentModel.project.
+This file is copied from io/data_loader.py to avoid conflict with stdlib 'io' package.
 """
 from typing import Optional, Dict, Any
 import pandas as pd
@@ -33,8 +26,31 @@ def load_from_file(path: str, sheet_name: Optional[str] = None) -> Dict[str, Any
     female_pop = get_array('female_pop', default=0.0)
     male_pop = get_array('male_pop', default=female_pop * 1.0)
     asfr = get_array('asfr', default=0.0)
-    surv_f = get_array('surv_female', default=1.0)
-    surv_m = get_array('surv_male', default=surv_f)
+    surv_f = get_array('surv_female', default=None)
+    surv_m = get_array('surv_male', default=None)
+    # attempt to read death probability columns if present (common names)
+    def find_death_prob():
+        if 'death_prob_female' in df.columns:
+            return df['death_prob_female'].to_numpy(dtype=float), df.get('death_prob_male', df['death_prob_female']).to_numpy(dtype=float)
+        if 'q_female' in df.columns:
+            return df['q_female'].to_numpy(dtype=float), df.get('q_male', df['q_female']).to_numpy(dtype=float)
+        return None, None
+
+    death_prob_f, death_prob_m = find_death_prob()
+
+    # If survival not provided but death_prob provided, keep death_prob and leave surv as None
+    if surv_f is None and death_prob_f is not None:
+        surv_f = None
+    else:
+        # default survival to 1.0 if completely missing
+        if surv_f is None:
+            surv_f = np.full_like(ages, fill_value=1.0, dtype=float)
+    if surv_m is None and death_prob_m is not None:
+        surv_m = None
+    else:
+        if surv_m is None:
+            surv_m = surv_f.copy()
+
     mig_f = get_array('mig_female', default=0.0)
     mig_m = get_array('mig_male', default=0.0)
 
@@ -43,7 +59,7 @@ def load_from_file(path: str, sheet_name: Optional[str] = None) -> Dict[str, Any
     if not np.array_equal(ages, expected_ages):
         raise ValueError(f"Ages must be contiguous 0..max_age. Found ages: {ages}")
 
-    return {
+    out = {
         'max_age': max_age,
         'pop_female': female_pop,
         'pop_male': male_pop,
@@ -53,3 +69,8 @@ def load_from_file(path: str, sheet_name: Optional[str] = None) -> Dict[str, Any
         'mig_female': mig_f,
         'mig_male': mig_m,
     }
+    if death_prob_f is not None:
+        out['death_prob_female'] = np.asarray(death_prob_f, dtype=float)
+        out['death_prob_male'] = np.asarray(death_prob_m, dtype=float)
+
+    return out

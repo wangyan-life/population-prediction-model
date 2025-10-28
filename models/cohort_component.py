@@ -51,11 +51,13 @@ class CohortComponentModel:
         years: int,
         pop_female: np.ndarray,
         fertility: np.ndarray,
-        survival_female: np.ndarray,
+        survival_female: Optional[np.ndarray] = None,
         pop_male: Optional[np.ndarray] = None,
         survival_male: Optional[np.ndarray] = None,
         mig_female: Optional[np.ndarray] = None,
         mig_male: Optional[np.ndarray] = None,
+        death_prob_female: Optional[np.ndarray] = None,
+        death_prob_male: Optional[np.ndarray] = None,
     ) -> Dict[str, Any]:
         """Run a multi-year projection.
 
@@ -78,10 +80,23 @@ class CohortComponentModel:
         years = int(years)
         pop_female = np.asarray(pop_female, dtype=float).copy()
         fertility = np.asarray(fertility, dtype=float)
-        survival_female = np.asarray(survival_female, dtype=float)
+        # survival_female may be provided either as survival probabilities or
+        # left None and provided as death probabilities via death_prob_female.
+        if survival_female is not None:
+            survival_female = np.asarray(survival_female, dtype=float)
 
         self._check_shapes(pop_female)
         self._check_shapes(fertility)
+
+        # If death probabilities were supplied, convert to survival: s = 1 - q
+        if survival_female is None and death_prob_female is not None:
+            death_prob_female = np.asarray(death_prob_female, dtype=float)
+            self._check_shapes(death_prob_female)
+            survival_female = 1.0 - death_prob_female
+
+        if survival_female is None:
+            raise ValueError("survival_female or death_prob_female must be provided")
+
         self._check_shapes(survival_female)
 
         if pop_male is None:
@@ -90,11 +105,17 @@ class CohortComponentModel:
             pop_male = np.asarray(pop_male, dtype=float).copy()
             self._check_shapes(pop_male)
 
-        if survival_male is None:
-            survival_male = survival_female.copy()
-        else:
+        # survival_male may also be provided directly or via death_prob_male
+        if survival_male is not None:
             survival_male = np.asarray(survival_male, dtype=float)
-            self._check_shapes(survival_male)
+        elif death_prob_male is not None:
+            death_prob_male = np.asarray(death_prob_male, dtype=float)
+            self._check_shapes(death_prob_male)
+            survival_male = 1.0 - death_prob_male
+        else:
+            survival_male = survival_female.copy()
+
+        self._check_shapes(survival_male)
 
         # Pre-allocate storage
         yrs = list(range(years + 1))
