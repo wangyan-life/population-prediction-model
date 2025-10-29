@@ -54,6 +54,23 @@ def load_from_file(path: str, sheet_name: Optional[str] = None) -> Dict[str, Any
     mig_f = get_array('mig_female', default=0.0)
     mig_m = get_array('mig_male', default=0.0)
 
+    # Optional metadata fields: read first non-null value if present
+    def read_scalar_column(col_name, cast_func=float):
+        if col_name in df.columns:
+            series = df[col_name].dropna()
+            if not series.empty:
+                try:
+                    return cast_func(series.iloc[0])
+                except Exception:
+                    # fallback: try converting via float then to int if needed
+                    if cast_func is int:
+                        return int(float(series.iloc[0]))
+                    return float(series.iloc[0])
+        return None
+
+    fertility_annual_factor = read_scalar_column('fertility_annual_factor', float)
+    fertility_decline_years = read_scalar_column('fertility_decline_years', int)
+
     # Validate lengths are max_age+1 and ages are contiguous 0..max_age
     expected_ages = np.arange(0, max_age + 1)
     if not np.array_equal(ages, expected_ages):
@@ -69,6 +86,11 @@ def load_from_file(path: str, sheet_name: Optional[str] = None) -> Dict[str, Any
         'mig_female': mig_f,
         'mig_male': mig_m,
     }
+    # attach optional fertility trend metadata if present
+    if fertility_annual_factor is not None:
+        out['fertility_annual_factor'] = float(fertility_annual_factor)
+    if fertility_decline_years is not None:
+        out['fertility_decline_years'] = int(fertility_decline_years)
     if death_prob_f is not None:
         out['death_prob_female'] = np.asarray(death_prob_f, dtype=float)
         out['death_prob_male'] = np.asarray(death_prob_m, dtype=float)
