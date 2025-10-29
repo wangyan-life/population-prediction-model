@@ -81,6 +81,12 @@ def main():
         proj_kwargs['survival_female'] = data['survival_female']
         proj_kwargs['survival_male'] = data['survival_male']
 
+    # Pass optional fertility trend metadata from loader if present
+    if 'fertility_annual_factor' in data and data.get('fertility_annual_factor') is not None:
+        proj_kwargs['fertility_annual_factor'] = data['fertility_annual_factor']
+    if 'fertility_decline_years' in data and data.get('fertility_decline_years') is not None:
+        proj_kwargs['fertility_decline_years'] = data['fertility_decline_years']
+
     out = model.project(**proj_kwargs)
 
     total_png, pyramids_dir = save_images_only(data, out, out_dir='outputs_images')
