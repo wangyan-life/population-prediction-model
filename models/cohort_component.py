@@ -58,6 +58,8 @@ class CohortComponentModel:
         mig_male: Optional[np.ndarray] = None,
         death_prob_female: Optional[np.ndarray] = None,
         death_prob_male: Optional[np.ndarray] = None,
+    fertility_annual_factor: Optional[float] = None,
+    fertility_decline_years: int = 0,
     ) -> Dict[str, Any]:
         """Run a multi-year projection.
 
@@ -139,12 +141,29 @@ class CohortComponentModel:
             mig_male = np.asarray(mig_male, dtype=float)
             self._check_shapes(mig_male)
 
+        # If a fertility trend is requested, validate parameters
+        if fertility_annual_factor is not None:
+            fertility_annual_factor = float(fertility_annual_factor)
+            if fertility_annual_factor <= 0.0:
+                raise ValueError("fertility_annual_factor must be > 0")
+        fertility_decline_years = int(fertility_decline_years)
+
         for y in range(1, years + 1):
             prev_f = age_female[-1]
             prev_m = age_male[-1]
 
+            # Optionally apply multiplicative fertility decline for early years.
+            # If fertility_annual_factor is provided and fertility_decline_years > 0,
+            # scale = fertility_annual_factor ** min(y, fertility_decline_years).
+            if fertility_annual_factor is not None and fertility_decline_years > 0:
+                exp = min(y, fertility_decline_years)
+                scale = fertility_annual_factor ** exp
+                fert_this = fertility * scale
+            else:
+                fert_this = fertility
+
             # Births produced by females: sum ASFR * women_at_age
-            yearly_births = float(np.sum(fertility * prev_f))
+            yearly_births = float(np.sum(fert_this * prev_f))
 
             # Allocate births by sex using sex-ratio-at-birth (SRB = males/females)
             male_prop = self.srb / (1.0 + self.srb)

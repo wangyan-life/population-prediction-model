@@ -1,4 +1,5 @@
 __pycache__/
+examples/__pycache__/
 *.py[cod]
 outputs/
 *.xlsx
@@ -9,3 +10,5 @@ venv/
 dist/
 build/
 *.egg-info
+*.zip
+*.png
