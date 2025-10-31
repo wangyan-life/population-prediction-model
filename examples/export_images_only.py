@@ -33,6 +33,14 @@ def save_images_only(data, out, out_dir='outputs_images'):
     # Age pyramids per year
     try:
         import matplotlib.pyplot as plt
+        # compute a global maximum for the x-axis so all frames use identical scale
+        all_max = 0.0
+        for i in range(len(years)):
+            f = out['age_female'][i]
+            m = out['age_male'][i]
+            all_max = max(all_max, float(np.max(f)), float(np.max(m)))
+        xlim = ( -all_max * 1.2, all_max * 1.2 )
+
         for i, y in enumerate(years):
             f = out['age_female'][i]
             m = out['age_male'][i]
@@ -42,8 +50,7 @@ def save_images_only(data, out, out_dir='outputs_images'):
             ax.set_xlabel('Population')
             ax.set_ylabel('Age')
             ax.set_title(f'Population pyramid year {y}')
-            bar_max = max(np.max(m), np.max(f))
-            ax.set_xlim(-bar_max * 1.2, bar_max * 1.2)
+            ax.set_xlim(xlim)
             xt = ax.get_xticks()
             # ensure ticks are fixed before setting custom labels to avoid Matplotlib warnings
             ax.set_xticks(xt)
